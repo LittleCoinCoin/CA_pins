@@ -199,7 +199,7 @@ def calculate_results(width):
     # pinned_trajectories(width)
 
     # all ECA trajectories up to 2^w
-    # eca_trajectories(width)
+    eca_trajectories(width - 2)
 
     file = open('pinned_trajectories_' + str(width), 'rb')
     pinned_trajectories = pickle.load(file)

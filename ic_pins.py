@@ -49,13 +49,14 @@ def eca_trajectories(width):
 
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
 
+    nb_steps = 2**width
     for rule in rules:
 
         trajectories[rule] = {}
 
         for initial_state in initial_states:
 
-            trajectories[rule][str(initial_state)] = CA_run(initial_state, 2**width, rule)
+            trajectories[rule][str(initial_state)] = CA_run(initial_state, nb_steps, rule)
 
     # save
     file = open('trajectories_' + str(width), 'wb')

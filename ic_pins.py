@@ -1,20 +1,26 @@
+import os
 import pickle
 import numpy as np
 from itertools import product
 import copy
-import networkx as nx
 import seaborn as sns
 import pandas as pd
+from concurrent.futures import ProcessPoolExecutor
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
+
+# global parameters
+rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
+             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
+             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
+             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
 
 def rule_index(triplet):
 
     L, C, R = triplet
     index = 7 - (4 * L + 2 * C + R)
     return int(index)
-
 
 def CA_run(initial_state, n_steps, rule_number):
 
@@ -37,175 +43,137 @@ def CA_run(initial_state, n_steps, rule_number):
 
     return CA_run.astype(int)
 
+def process_rule(rule, _nb_steps, _initial_states):
 
-def eca_trajectories(width):
+        print("[eca_trajectories] Processing rule:", rule)
+
+        trajectories_per_rule = {}
+
+        for initial_state in _initial_states:
+            trajectories_per_rule[str(initial_state)] = CA_run(initial_state, _nb_steps, rule)
+
+        return rule, trajectories_per_rule
+
+def eca_trajectories(width, _max_workers=4,
+                     _out_trajectories_path="./",
+                     _out_trajectories_file_name = "trajectories_"):
+
+    initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
+    nb_steps = 2**width
 
     trajectories = {}
 
-    rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
-             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
-             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
-             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
+    with ProcessPoolExecutor(max_workers=_max_workers) as executor:
+        results = [executor.submit(process_rule, rule, nb_steps, initial_states) for rule in rules]
 
-    initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
-
-    for rule in rules:
-
-        trajectories[rule] = {}
-
-        for initial_state in initial_states:
-
-            trajectories[rule][str(initial_state)] = CA_run(initial_state, 2**width, rule)
+    for _res in results:
+        rule, trajectories_per_rule = _res.result()
+        trajectories[rule] = trajectories_per_rule
 
     # save
-    file = open('trajectories_' + str(width), 'wb')
+    full_path = _out_trajectories_path+"/"+_out_trajectories_file_name + str(width)
+    print("[eca_trajectories] Saving trajectories to: ", full_path)
+    file = open(full_path, 'wb')
     pickle.dump(trajectories, file)
     file.close()
 
 
-def pinned_trajectories(width):
+def process_pinned_rule(rule, width, initial_states, pins):
 
+    print("[pinned_trajectories] Processing rule:", rule)
+
+    trajectories_per_rule = {}
+    for pin in pins:
+        trajectories_per_rule[str(pin)] = {}
+        for initial_state in initial_states:
+            trajectories_per_rule[str(pin)][str(initial_state)] = {}
+            initial_state_pinned = copy.deepcopy(initial_state)
+            initial_state_pinned[pin[0][0]] = pin[1][0]
+            initial_state_pinned[pin[0][1]] = pin[1][1]
+            trajectories_per_rule[str(pin)][str(initial_state)][0] = initial_state_pinned
+            t0 = initial_state_pinned
+            for t in range(1, 2 ** width):
+                data = CA_run(t0, 2, rule)
+                t1 = data[-1]
+                t1[pin[0][0]] = pin[1][0]
+                t1[pin[0][1]] = pin[1][1]
+                trajectories_per_rule[str(pin)][str(initial_state)][t] = t1
+                t0 = t1
+    return rule, trajectories_per_rule
+
+def pinned_trajectories(width, _max_workers=4,
+                        _out_pinned_trajectories_path="./",
+                        _out_pinned_trajectories_file_name = "pinned_trajectories_"):
     trajectories = {}
-
-    rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
-             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
-             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
-             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
-
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
+    pins = list(product(product(range(0, width), range(0, width)), product(range(0, 2), range(0, 2))))
 
-    # 2 pin positions
-    pins = list(product(product(range(0, width), range(0, width)), product(range(0, 2), range(0, 2))))  # (position, value)
+    with ProcessPoolExecutor(max_workers=_max_workers) as executor:
+        results = [executor.submit(process_pinned_rule, rule, width, initial_states, pins) for rule in rules]
 
-    # loops over all rules
-    for rule in rules:
+    for _res in results:
+        rule, trajectories_per_rule = _res.result()
+        trajectories[rule] = trajectories_per_rule
 
-        trajectories[rule] = {}
-
-        # loop over all single pins
-        for pin in pins:
-
-            trajectories[rule][str(pin)] = {}
-
-            # loop over all initial states
-            for initial_state in initial_states:
-
-                trajectories[rule][str(pin)][str(initial_state)] = {}
-
-                # put pins in
-                initial_state_pinned = copy.deepcopy(initial_state)
-                initial_state_pinned[pin[0][0]] = pin[1][0]
-                initial_state_pinned[pin[0][1]] = pin[1][1]
-                trajectories[rule][str(pin)][str(initial_state)][0] = initial_state_pinned
-
-                t0 = initial_state_pinned
-
-                # put the pin in for every time step
-                for t in range(1, 2 ** width):
-
-                    data = CA_run(t0, 2, rule)
-                    t1 = data[-1]
-
-                    # put pin in
-                    t1[pin[0][0]] = pin[1][0]
-                    t1[pin[0][1]] = pin[1][1]
-
-                    trajectories[rule][str(pin)][str(initial_state)][t] = t1
-
-                    t0 = t1
-
-    # Its important to use binary mode
-    file = open('pinned_trajectories_' + str(width), 'wb')
-
-    # source, destination
+    # save
+    full_path = _out_pinned_trajectories_path+"/"+_out_pinned_trajectories_file_name+str(width)
+    print("[pinned_trajectories] Saving pinned trajectories to: ", full_path)
+    file = open(full_path, 'wb')
     pickle.dump(trajectories, file)
     file.close()
 
 
-def calculate_results(width):
+def calculate_results(width,
+                      _in_trajectories_path="./", _in_trajectories_file_name = "trajectories_",
+                      _in_pinned_trajectories_path="./", _in_pinned_trajectories_file_name = "pinned_trajectories_",
+                      _out_results_path = "./", _out_results_file_name="pinned_results_"):
 
     class1 = [0, 8, 32, 40, 128, 136, 160, 168]
 
-    class2 = [1, 2, 3, 4, 5, 6, 7,
-              9,
-              10,
-              11,
-              12,
-              13,
-              14,
-              15,
-              19,
-              23,
-              24,
-              25,
-              26,
-              27,
-              28,
-              29,
-              33,
-              34,
-              35,
-              36,
-              37,
-              38,
-              42,
-              43,
-              44,
-              46,
-              50,
-              51,
-              56,
-              57,
-              58,
-              62,
-              72,
-              73,
-              74,
-              76,
-              77,
-              78,
-              94,
-              104,
-              108,
-              130,
-              132,
-              134,
-              138,
-              140,
-              142,
-              152,
-              154,
-              156,
-              162,
-              164,
-              170,
-              172,
-              178,
-              184,
-              200,
-              204,
-              232]
+    class2 = [  1,  2,  3,  4,  5,  6,  7,      9,  10,
+                11, 12, 13, 14, 15,             19,
+                        23, 24, 25, 26, 27, 28, 29,
+                        33, 34, 35, 36, 37, 38,
+                    42, 43, 44,     46,
+          50,   51,                 56, 57, 58,
+                    62,
+                    72, 73, 74,     76, 77, 78,
+                            94,
+                            104,            108,
+         130,       132,    134,            138,
+         140,       142,
+                    152,    154,    156,
+                    162,    164,
+         170,       172,                    178,
+                            184,
+              200,          204,
+                    232]
 
     class3 = [18, 22, 30, 45, 60, 90, 105, 122, 126, 146, 150]
 
     class4 = [41, 54, 106, 110]
 
-    rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
-             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
-             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
-             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
-
     # regular ECA state space over all the rules
-    # pinned_trajectories(width)
+    full_path = _in_pinned_trajectories_path + "/" + _in_pinned_trajectories_file_name + str(width)
+    if(not os.path.exists(full_path)):
+        print("[calculate_results] Pinned trajectories not found at '" + full_path + "'.\nGenerating now.")
+        pinned_trajectories(width,
+                            _out_pinned_trajectories_path=_in_pinned_trajectories_path,
+                            _out_pinned_trajectories_file_name = _in_pinned_trajectories_file_name)
+    file = open(full_path, 'rb')
+    pinned_trajectories = pickle.load(file)
+    file.close()
 
     # all ECA trajectories up to 2^w
-    # eca_trajectories(width)
-
-    file = open('pinned_trajectories_' + str(width), 'rb')
-    pinned_trajectories = pickle.load(file)
-
-    file = open('trajectories_' + str(width - 2), 'rb')
+    full_path = _in_trajectories_path+"/"+_in_trajectories_file_name+ str(width - 2)
+    if(not os.path.exists(full_path)):
+        print("[calculate_results] Trajectories not found at '" + full_path + "'.\nGenerating now.")
+        eca_trajectories(width - 2,
+                         _out_trajectories_path = _in_trajectories_path,
+                         _out_trajectories_file_name = _in_pinned_trajectories_file_name)
+    file = open(full_path, 'rb')
     trajectories = pickle.load(file)
+    file.close()
 
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
 
@@ -296,10 +264,10 @@ def calculate_results(width):
                                                                        'pin_position', 'pin_value', 'rule2',
                                                                        'rule2_c', 'n_rules2', 'n_states'])
 
-    # Its important to use binary mode
-    file = open('pinned_results_' + str(width), 'wb')
-
-    # source, destination
+    # save
+    full_path = _out_results_path + "/" + _out_results_file_name + str(width - 2)
+    print("[calculate_results] Saving results to: ", full_path)
+    file = open(full_path, 'wb') # Its important to use binary mode
     pickle.dump(results, file)
     file.close()
 
@@ -309,17 +277,37 @@ if __name__ == '__main__':
 
     widths = [5]
 
-    for width in widths:
+    #paths for the data that will be generated
+    root = "./data"
+    patterns_path = root + "/patterns"
+    trajectories_path = root + "/trajectories"
+    pinned_trajectories_path = root + "/pinned_trajectories"
+    pinned_results_path = root + "/pinned_results"
+    patterns_1D_path = root + "/patterns/1D"
+    patterns_1D_space_path = root + "/patterns/1D/space" # for patterns along the 1D space at a single time step
+    patterns_1D_time_path = root + "/patterns/1D/time" # for patterns along the time axis at a single space cell
 
-        print(width)
+    for _width in widths:
+
+        print(_width)
 
         # run pins
-        #pinned_trajectories(width)  # need to run 6 and 7
+        # need to run 6 and 7
+        full_path = pinned_trajectories_path + "/pinned_trajectories_" + str(_width)
+        if(not os.path.exists(full_path)):
+            print("[main] Pinned trajectories not found at '" + full_path + "'.\nGenerating now.")
+            pinned_trajectories(_width,
+                                _out_pinned_trajectories_path = pinned_trajectories_path)
 
         # process the results
-        #calculate_results(width)  # rule2 isn't rule2_maxc
-
-        file = open('pinned_results_' + str(width), 'rb')
+        full_path = pinned_results_path + "/pinned_results_" + str(_width)
+        if(not os.path.exists(full_path)):
+            print("[main] Results not found at '" + full_path + "'.\nGenerating now")
+            calculate_results(_width,
+                            _in_trajectories_path = trajectories_path,
+                            _in_pinned_trajectories_path = pinned_trajectories_path,
+                            _out_results_path = pinned_trajectories_path)  # rule2 isn't rule2_maxc
+        file = open(full_path, 'rb')
         results = pickle.load(file)
 
         # drop the trivial cases
@@ -342,5 +330,6 @@ if __name__ == '__main__':
 
         plot = sns.heatmap(heatmap_data, annot=True)
         fig = plot.get_figure()
-        fig.savefig("pinned_results_" + str(width) + ".png")
+        full_path = pinned_results_path + "/pinned_results_" + str(_width) + ".png"
+        fig.savefig(full_path)
         fig.clf()

@@ -5,6 +5,7 @@ import copy
 import networkx as nx
 import seaborn as sns
 import pandas as pd
+from concurrent.futures import ProcessPoolExecutor
 
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
@@ -37,26 +38,35 @@ def CA_run(initial_state, n_steps, rule_number):
 
     return CA_run.astype(int)
 
+def process_rule(rule, _nb_steps, _initial_states):
 
-def eca_trajectories(width):
+        print("[eca_trajectories] Processing rule:", rule)
 
-    trajectories = {}
+        trajectories_per_rule = {}
+
+        for initial_state in _initial_states:
+            trajectories_per_rule[str(initial_state)] = CA_run(initial_state, _nb_steps, rule)
+
+        return rule, trajectories_per_rule
+
+def eca_trajectories(width, _max_workers=4):
+
+    initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
+    nb_steps = 2**width
 
     rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
              178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
              1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
              23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
 
-    initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
+    trajectories = {}
 
-    nb_steps = 2**width
-    for rule in rules:
+    with ProcessPoolExecutor(max_workers=_max_workers) as executor:
+        results = [executor.submit(process_rule, rule, nb_steps, initial_states) for rule in rules]
 
-        trajectories[rule] = {}
-
-        for initial_state in initial_states:
-
-            trajectories[rule][str(initial_state)] = CA_run(initial_state, nb_steps, rule)
+    for _res in results:
+        rule, trajectories_per_rule = _res.result()
+        trajectories[rule] = trajectories_per_rule
 
     # save
     file = open('trajectories_' + str(width), 'wb')
@@ -156,7 +166,7 @@ def calculate_results(width):
              23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
 
     # regular ECA state space over all the rules
-    # pinned_trajectories(width)
+    pinned_trajectories(width)
 
     # all ECA trajectories up to 2^w
     eca_trajectories(width - 2)
@@ -269,38 +279,40 @@ if __name__ == '__main__':
 
     widths = [5]
 
-    for width in widths:
+    for _width in widths:
 
-        print(width)
+        print(_width)
 
-        # run pins
-        #pinned_trajectories(width)  # need to run 6 and 7
+        eca_trajectories(_width)
 
-        # process the results
-        #calculate_results(width)  # rule2 isn't rule2_maxc
+        # # run pins
+        # pinned_trajectories(_width)  # need to run 6 and 7
 
-        file = open('pinned_results_' + str(width), 'rb')
-        results = pickle.load(file)
+        # # process the results
+        # calculate_results(_width)  # rule2 isn't rule2_maxc
 
-        # drop the trivial cases
-        results = results.drop(results[results.n_states < 3].index)
+        # file = open('pinned_results_' + str(_width), 'rb')
+        # results = pickle.load(file)
 
-        # want to turn this into a heatmap for sure
-        heatmap_data = []
-        for i in range(1, 5):
-            dict = {
-                'index': 'Class '+str(i),
-                'Class 1': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 1")).sum(),
-                'Class 2': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 2")).sum(),
-                'Class 3': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 3")).sum(),
-                'Class 4': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 4")).sum()
-            }
-            heatmap_data.append(dict)
+        # # drop the trivial cases
+        # results = results.drop(results[results.n_states < 3].index)
 
-        heatmap_data = pd.DataFrame.from_records(heatmap_data, index='index')
+        # # want to turn this into a heatmap for sure
+        # heatmap_data = []
+        # for i in range(1, 5):
+        #     dict = {
+        #         'index': 'Class '+str(i),
+        #         'Class 1': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 1")).sum(),
+        #         'Class 2': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 2")).sum(),
+        #         'Class 3': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 3")).sum(),
+        #         'Class 4': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 4")).sum()
+        #     }
+        #     heatmap_data.append(dict)
+
+        # heatmap_data = pd.DataFrame.from_records(heatmap_data, index='index')
 
 
-        plot = sns.heatmap(heatmap_data, annot=True)
-        fig = plot.get_figure()
-        fig.savefig("pinned_results_" + str(width) + ".png")
-        fig.clf()
+        # plot = sns.heatmap(heatmap_data, annot=True)
+        # fig = plot.get_figure()
+        # fig.savefig("pinned_results_" + str(width) + ".png")
+        # fig.clf()

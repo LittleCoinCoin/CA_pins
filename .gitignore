@@ -1,0 +1,5 @@
+# Specific 'ignore' rules for the project
+data
+
+# Ignore Visual Studio Code files
+.vscode/

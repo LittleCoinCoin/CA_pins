@@ -1,8 +1,8 @@
+import os
 import pickle
 import numpy as np
 from itertools import product
 import copy
-import networkx as nx
 import seaborn as sns
 import pandas as pd
 from concurrent.futures import ProcessPoolExecutor
@@ -21,7 +21,6 @@ def rule_index(triplet):
     L, C, R = triplet
     index = 7 - (4 * L + 2 * C + R)
     return int(index)
-
 
 def CA_run(initial_state, n_steps, rule_number):
 
@@ -55,7 +54,9 @@ def process_rule(rule, _nb_steps, _initial_states):
 
         return rule, trajectories_per_rule
 
-def eca_trajectories(width, _max_workers=4):
+def eca_trajectories(width, _max_workers=4,
+                     _out_trajectories_path="./",
+                     _out_trajectories_file_name = "trajectories_"):
 
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
     nb_steps = 2**width
@@ -70,7 +71,9 @@ def eca_trajectories(width, _max_workers=4):
         trajectories[rule] = trajectories_per_rule
 
     # save
-    file = open('trajectories_' + str(width), 'wb')
+    full_path = _out_trajectories_path+"/"+_out_trajectories_file_name + str(width)
+    print("[eca_trajectories] Saving trajectories to: ", full_path)
+    file = open(full_path, 'wb')
     pickle.dump(trajectories, file)
     file.close()
 
@@ -98,7 +101,9 @@ def process_pinned_rule(rule, width, initial_states, pins):
                 t0 = t1
     return rule, trajectories_per_rule
 
-def pinned_trajectories(width, _max_workers=4):
+def pinned_trajectories(width, _max_workers=4,
+                        _out_pinned_trajectories_path="./",
+                        _out_pinned_trajectories_file_name = "pinned_trajectories_"):
     trajectories = {}
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
     pins = list(product(product(range(0, width), range(0, width)), product(range(0, 2), range(0, 2))))
@@ -110,12 +115,18 @@ def pinned_trajectories(width, _max_workers=4):
         rule, trajectories_per_rule = _res.result()
         trajectories[rule] = trajectories_per_rule
 
-    file = open('pinned_trajectories_' + str(width), 'wb')
+    # save
+    full_path = _out_pinned_trajectories_path+"/"+_out_pinned_trajectories_file_name+str(width)
+    print("[pinned_trajectories] Saving pinned trajectories to: ", full_path)
+    file = open(full_path, 'wb')
     pickle.dump(trajectories, file)
     file.close()
 
 
-def calculate_results(width):
+def calculate_results(width,
+                      _in_trajectories_path="./", _in_trajectories_file_name = "trajectories_",
+                      _in_pinned_trajectories_path="./", _in_pinned_trajectories_file_name = "pinned_trajectories_",
+                      _out_results_path = "./", _out_results_file_name="pinned_results_"):
 
     class1 = [0, 8, 32, 40, 128, 136, 160, 168]
 
@@ -143,16 +154,26 @@ def calculate_results(width):
     class4 = [41, 54, 106, 110]
 
     # regular ECA state space over all the rules
-    pinned_trajectories(width)
+    full_path = _in_pinned_trajectories_path + "/" + _in_pinned_trajectories_file_name + str(width)
+    if(not os.path.exists(full_path)):
+        print("[calculate_results] Pinned trajectories not found at '" + full_path + "'.\nGenerating now.")
+        pinned_trajectories(width,
+                            _out_pinned_trajectories_path=_in_pinned_trajectories_path,
+                            _out_pinned_trajectories_file_name = _in_pinned_trajectories_file_name)
+    file = open(full_path, 'rb')
+    pinned_trajectories = pickle.load(file)
+    file.close()
 
     # all ECA trajectories up to 2^w
-    eca_trajectories(width - 2)
-
-    file = open('pinned_trajectories_' + str(width), 'rb')
-    pinned_trajectories = pickle.load(file)
-
-    file = open('trajectories_' + str(width - 2), 'rb')
+    full_path = _in_trajectories_path+"/"+_in_trajectories_file_name+ str(width - 2)
+    if(not os.path.exists(full_path)):
+        print("[calculate_results] Trajectories not found at '" + full_path + "'.\nGenerating now.")
+        eca_trajectories(width - 2,
+                         _out_trajectories_path = _in_trajectories_path,
+                         _out_trajectories_file_name = _in_pinned_trajectories_file_name)
+    file = open(full_path, 'rb')
     trajectories = pickle.load(file)
+    file.close()
 
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
 
@@ -243,10 +264,10 @@ def calculate_results(width):
                                                                        'pin_position', 'pin_value', 'rule2',
                                                                        'rule2_c', 'n_rules2', 'n_states'])
 
-    # Its important to use binary mode
-    file = open('pinned_results_' + str(width), 'wb')
-
-    # source, destination
+    # save
+    full_path = _out_results_path + "/" + _out_results_file_name + str(width - 2)
+    print("[calculate_results] Saving results to: ", full_path)
+    file = open(full_path, 'wb') # Its important to use binary mode
     pickle.dump(results, file)
     file.close()
 
@@ -256,38 +277,59 @@ if __name__ == '__main__':
 
     widths = [5]
 
+    #paths for the data that will be generated
+    root = "./data"
+    patterns_path = root + "/patterns"
+    trajectories_path = root + "/trajectories"
+    pinned_trajectories_path = root + "/pinned_trajectories"
+    pinned_results_path = root + "/pinned_results"
+    patterns_1D_path = root + "/patterns/1D"
+    patterns_1D_space_path = root + "/patterns/1D/space" # for patterns along the 1D space at a single time step
+    patterns_1D_time_path = root + "/patterns/1D/time" # for patterns along the time axis at a single space cell
+
     for _width in widths:
 
         print(_width)
 
-        # # run pins
-        pinned_trajectories(_width)  # need to run 6 and 7
+        # run pins
+        # need to run 6 and 7
+        full_path = pinned_trajectories_path + "/pinned_trajectories_" + str(_width)
+        if(not os.path.exists(full_path)):
+            print("[main] Pinned trajectories not found at '" + full_path + "'.\nGenerating now.")
+            pinned_trajectories(_width,
+                                _out_pinned_trajectories_path = pinned_trajectories_path)
 
-        # # process the results
-        # calculate_results(_width)  # rule2 isn't rule2_maxc
+        # process the results
+        full_path = pinned_results_path + "/pinned_results_" + str(_width)
+        if(not os.path.exists(full_path)):
+            print("[main] Results not found at '" + full_path + "'.\nGenerating now")
+            calculate_results(_width,
+                            _in_trajectories_path = trajectories_path,
+                            _in_pinned_trajectories_path = pinned_trajectories_path,
+                            _out_results_path = pinned_trajectories_path)  # rule2 isn't rule2_maxc
+        file = open(full_path, 'rb')
+        results = pickle.load(file)
 
-        # file = open('pinned_results_' + str(_width), 'rb')
-        # results = pickle.load(file)
+        # drop the trivial cases
+        results = results.drop(results[results.n_states < 3].index)
 
-        # # drop the trivial cases
-        # results = results.drop(results[results.n_states < 3].index)
+        # want to turn this into a heatmap for sure
+        heatmap_data = []
+        for i in range(1, 5):
+            dict = {
+                'index': 'Class '+str(i),
+                'Class 1': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 1")).sum(),
+                'Class 2': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 2")).sum(),
+                'Class 3': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 3")).sum(),
+                'Class 4': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 4")).sum()
+            }
+            heatmap_data.append(dict)
 
-        # # want to turn this into a heatmap for sure
-        # heatmap_data = []
-        # for i in range(1, 5):
-        #     dict = {
-        #         'index': 'Class '+str(i),
-        #         'Class 1': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 1")).sum(),
-        #         'Class 2': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 2")).sum(),
-        #         'Class 3': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 3")).sum(),
-        #         'Class 4': ((results["rule1_c"] == "Class "+str(i)) & (results["rule2_c"] == "Class 4")).sum()
-        #     }
-        #     heatmap_data.append(dict)
-
-        # heatmap_data = pd.DataFrame.from_records(heatmap_data, index='index')
+        heatmap_data = pd.DataFrame.from_records(heatmap_data, index='index')
 
 
-        # plot = sns.heatmap(heatmap_data, annot=True)
-        # fig = plot.get_figure()
-        # fig.savefig("pinned_results_" + str(width) + ".png")
-        # fig.clf()
+        plot = sns.heatmap(heatmap_data, annot=True)
+        fig = plot.get_figure()
+        full_path = pinned_results_path + "/pinned_results_" + str(_width) + ".png"
+        fig.savefig(full_path)
+        fig.clf()

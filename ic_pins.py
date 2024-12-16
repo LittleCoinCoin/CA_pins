@@ -10,6 +10,12 @@ from concurrent.futures import ProcessPoolExecutor
 # Press ⌃R to execute it or replace it with your code.
 # Press Double ⇧ to search everywhere for classes, files, tool windows, actions, and settings.
 
+# global parameters
+rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
+             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
+             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
+             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
+
 def rule_index(triplet):
 
     L, C, R = triplet
@@ -54,11 +60,6 @@ def eca_trajectories(width, _max_workers=4):
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
     nb_steps = 2**width
 
-    rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
-             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
-             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
-             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
-
     trajectories = {}
 
     with ProcessPoolExecutor(max_workers=_max_workers) as executor:
@@ -74,61 +75,42 @@ def eca_trajectories(width, _max_workers=4):
     file.close()
 
 
-def pinned_trajectories(width):
+def process_pinned_rule(rule, width, initial_states, pins):
 
+    print("[pinned_trajectories] Processing rule:", rule)
+
+    trajectories_per_rule = {}
+    for pin in pins:
+        trajectories_per_rule[str(pin)] = {}
+        for initial_state in initial_states:
+            trajectories_per_rule[str(pin)][str(initial_state)] = {}
+            initial_state_pinned = copy.deepcopy(initial_state)
+            initial_state_pinned[pin[0][0]] = pin[1][0]
+            initial_state_pinned[pin[0][1]] = pin[1][1]
+            trajectories_per_rule[str(pin)][str(initial_state)][0] = initial_state_pinned
+            t0 = initial_state_pinned
+            for t in range(1, 2 ** width):
+                data = CA_run(t0, 2, rule)
+                t1 = data[-1]
+                t1[pin[0][0]] = pin[1][0]
+                t1[pin[0][1]] = pin[1][1]
+                trajectories_per_rule[str(pin)][str(initial_state)][t] = t1
+                t0 = t1
+    return rule, trajectories_per_rule
+
+def pinned_trajectories(width, _max_workers=4):
     trajectories = {}
-
-    rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
-             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
-             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
-             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
-
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
+    pins = list(product(product(range(0, width), range(0, width)), product(range(0, 2), range(0, 2))))
 
-    # 2 pin positions
-    pins = list(product(product(range(0, width), range(0, width)), product(range(0, 2), range(0, 2))))  # (position, value)
+    with ProcessPoolExecutor(max_workers=_max_workers) as executor:
+        results = [executor.submit(process_pinned_rule, rule, width, initial_states, pins) for rule in rules]
 
-    # loops over all rules
-    for rule in rules:
+    for _res in results:
+        rule, trajectories_per_rule = _res.result()
+        trajectories[rule] = trajectories_per_rule
 
-        trajectories[rule] = {}
-
-        # loop over all single pins
-        for pin in pins:
-
-            trajectories[rule][str(pin)] = {}
-
-            # loop over all initial states
-            for initial_state in initial_states:
-
-                trajectories[rule][str(pin)][str(initial_state)] = {}
-
-                # put pins in
-                initial_state_pinned = copy.deepcopy(initial_state)
-                initial_state_pinned[pin[0][0]] = pin[1][0]
-                initial_state_pinned[pin[0][1]] = pin[1][1]
-                trajectories[rule][str(pin)][str(initial_state)][0] = initial_state_pinned
-
-                t0 = initial_state_pinned
-
-                # put the pin in for every time step
-                for t in range(1, 2 ** width):
-
-                    data = CA_run(t0, 2, rule)
-                    t1 = data[-1]
-
-                    # put pin in
-                    t1[pin[0][0]] = pin[1][0]
-                    t1[pin[0][1]] = pin[1][1]
-
-                    trajectories[rule][str(pin)][str(initial_state)][t] = t1
-
-                    t0 = t1
-
-    # Its important to use binary mode
     file = open('pinned_trajectories_' + str(width), 'wb')
-
-    # source, destination
     pickle.dump(trajectories, file)
     file.close()
 
@@ -159,11 +141,6 @@ def calculate_results(width):
     class3 = [18, 22, 30, 45, 60, 90, 105, 122, 126, 146, 150]
 
     class4 = [41, 54, 106, 110]
-
-    rules = [30, 45, 73, 110, 150, 105, 54, 22, 60, 146, 126, 62, 90, 18, 122, 26, 154, 94, 41, 57, 156, 28, 58, 78,
-             178, 77, 50, 13, 25, 37, 9, 35, 106, 3, 27, 43, 184, 56, 11, 142, 14, 134, 24, 7, 152, 170, 46, 15, 33,
-             1, 42, 162, 6, 5, 138, 38, 10, 74, 34, 29, 130, 2, 204, 200, 172, 108, 76, 72, 51, 44, 104, 232, 140, 132,
-             23, 12, 164, 36, 19, 4, 168, 40, 160, 136, 128, 32, 8, 0]
 
     # regular ECA state space over all the rules
     pinned_trajectories(width)
@@ -283,10 +260,8 @@ if __name__ == '__main__':
 
         print(_width)
 
-        eca_trajectories(_width)
-
         # # run pins
-        # pinned_trajectories(_width)  # need to run 6 and 7
+        pinned_trajectories(_width)  # need to run 6 and 7
 
         # # process the results
         # calculate_results(_width)  # rule2 isn't rule2_maxc

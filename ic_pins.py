@@ -55,7 +55,7 @@ def process_rule(rule, _nb_steps, _initial_states):
         return rule, trajectories_per_rule
 
 def eca_trajectories(width, _max_workers=4,
-                     _out_trajectories_path="./",
+                     _out_trajectories_path=".",
                      _out_trajectories_file_name = "trajectories_"):
 
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
@@ -102,7 +102,7 @@ def process_pinned_rule(rule, width, initial_states, pins):
     return rule, trajectories_per_rule
 
 def pinned_trajectories(width, _max_workers=4,
-                        _out_pinned_trajectories_path="./",
+                        _out_pinned_trajectories_path=".",
                         _out_pinned_trajectories_file_name = "pinned_trajectories_"):
     trajectories = {}
     initial_states = [np.array(bits) for bits in product([0, 1], repeat=width)]
@@ -124,9 +124,9 @@ def pinned_trajectories(width, _max_workers=4,
 
 
 def calculate_results(width,
-                      _in_trajectories_path="./", _in_trajectories_file_name = "trajectories_",
-                      _in_pinned_trajectories_path="./", _in_pinned_trajectories_file_name = "pinned_trajectories_",
-                      _out_results_path = "./", _out_results_file_name="pinned_results_"):
+                      _in_trajectories_path=".", _in_trajectories_file_name = "trajectories_",
+                      _in_pinned_trajectories_path=".", _in_pinned_trajectories_file_name = "pinned_trajectories_",
+                      _out_results_path = ".", _out_results_file_name="pinned_results_"):
 
     class1 = [0, 8, 32, 40, 128, 136, 160, 168]
 

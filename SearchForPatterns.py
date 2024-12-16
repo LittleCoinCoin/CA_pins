@@ -88,7 +88,9 @@ def Check_Make_Dir(path):
     if not os.path.exists(path):
         os.mkdir(path)
 
-def Count_1D_Space_patterns(_width, _n_steps, _rules, _initial_states, _trajectories_path, _patterns_1D_space_path):
+def Count_1D_Space_patterns(_width, _n_steps, _rules, _initial_states,
+                            _in_trajectories_path=".", _in_trajectories_file_name = "trajectories_",
+                            _out_patterns_1D_space_path=".", _out_patterns_1D_space_file_name = "all_pattern_counts_"):
     """
     Count the occurrences of 1D Cellular Automata (CA) patterns over a number of steps and save the results.
     Parameters:
@@ -96,14 +98,16 @@ def Count_1D_Space_patterns(_width, _n_steps, _rules, _initial_states, _trajecto
     _n_steps (int): The number of steps to simulate the CA.
     _rules (list): The list of rules (as integers) for which the trajectories were recorded.
     _initial_states (list): The list of initial states for which the trajectories were recorded.
-    _trajectories_path (str): The path to the directory containing the trajectory for the CA of the given width.
-    _patterns_1D_space_path (str): The path to the directory where the pattern count results will be saved.
+    _in_trajectories_path (str): The path to the directory containing the trajectory for the CA of the given width.
+    _in_trajectories_file_name (str): The base name of the file containing the trajectories for the CA of the given width.
+    _out_patterns_1D_space_path (str): The path to the directory where the pattern count results will be saved.
+    _out_patterns_1D_space_file_name (str): The base name of the file where the pattern count results will be saved.
     Returns:
     None
     """
 
     # Extract the trajectory from the recorded data
-    file = open(_trajectories_path+ f"/trajectories_{_width}", 'rb')
+    file = open(_in_trajectories_path + "/" + _in_trajectories_file_name + str(_width), 'rb')
     trajectories = pickle.load(file) # dict with double keys: rule and initial state
     file.close()
 
@@ -128,7 +132,7 @@ def Count_1D_Space_patterns(_width, _n_steps, _rules, _initial_states, _trajecto
             all_pattern_counts[_rule][str(initial_state)] = pattern_counts
             
     # save the pattern in a byte file
-    filename = _patterns_1D_space_path + f"/all_pattern_counts_{_width}"
+    filename = _out_patterns_1D_space_path + "/" + _out_patterns_1D_space_file_name + str(_width)
     file = open(filename, 'wb')
     pickle.dump(all_pattern_counts, file)
     file.close()

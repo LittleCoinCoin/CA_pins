@@ -291,6 +291,7 @@ if __name__ == "__main__":
     patterns_1D_path = root + "/patterns/1D"
     patterns_1D_space_path = root + "/patterns/1D/space" # for patterns along the 1D space at a single time step
     patterns_1D_time_path = root + "/patterns/1D/time" # for patterns along the time axis at a single space cell
+    patterns_2D_path = root + "/patterns/2D" # means we have both space and time dimensions for 1D CAs
 
     # ---- Testing with spatial patterns ----
     ## Count the patterns along the 1D space
@@ -334,4 +335,24 @@ if __name__ == "__main__":
     print("Printing from the file read. The pattern counts for rule 30, initial state 00001 are:\n",
           all_pattern_counts[30][str(np.array([0, 0, 0, 0, 1]))])
     
+
+    # ---- Testing with spatiotemporal patterns ----
+    ## Count the patterns along the space and time (i.e. 2D) using the general Count_CA_patterns function
+    ## The scanning window will be a 3x3 window
+    Check_Make_Dir(patterns_2D_path)
+    test_width = 3
+    test_height = 3
+    Count_CA_patterns(width, rules, initial_states,
+                        trajectories_path, "trajectories_", # input data
+                        patterns_2D_path, "all_pattern_counts_", # output data
+                        _pattern_width=test_width, _pattern_height=test_height,
+                        _width_step=1, _height_step=1 # Identical to default values
+                        )
+    
+    ## for checking purposes, open the file and print the patterns
+    file = open(patterns_2D_path + f"/all_pattern_counts_{width}_{test_width}_{test_height}_1_1", 'rb')
+    all_pattern_counts = pickle.load(file)
+    file.close()
+    print("Printing from the file read. The pattern counts for rule 30, initial state 00001 are:\n",
+            all_pattern_counts[30][str(np.array([0, 0, 0, 0, 1]))])
 

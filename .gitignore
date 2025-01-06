@@ -1,5 +1,6 @@
 # Specific 'ignore' rules for the project
 data
+**/__pycache__/
 
 # Ignore Visual Studio Code files
 .vscode/

@@ -2,3 +2,4 @@ numpy
 networkx
 seaborn
 pandas
+ipykernel

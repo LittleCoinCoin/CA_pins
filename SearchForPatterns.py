@@ -213,7 +213,19 @@ class PatternScanWindow:
 
 
         return pattern_counts
-
+    
+    def Inverse_CA_2D_State(self, integer_state):
+        """
+        Converts an integer to a binary representation of a 2D cellular automaton (CA) state.
+        This function takes an integer and converts it to a binary array representing the state
+        of a 2D cellular automaton (CA) of a given width and height.
+        Args:
+            integer_state (int): The integer representation of the CA state.
+        Returns:
+            np.ndarray: A binary array representing the CA state.
+        """
+        return np.array([int(x) for x in np.binary_repr(integer_state, self.width * self.height)]).reshape((self.height, self.width))
+        
 
 def process_rule(_rule, _trajectory, _scanner, _initial_states):
     pattern_counts = {}
@@ -293,7 +305,21 @@ if __name__ == "__main__":
     patterns_1D_time_path = root + "/patterns/1D/time" # for patterns along the time axis at a single space cell
     patterns_2D_path = root + "/patterns/2D" # means we have both space and time dimensions for 1D CAs
 
+    # ---- Testing that converting a pattern to an integer and back to a pattern gives the same pattern ----
+    print("---- Testing the conversion of a pattern to an integer and back to a pattern ----")
+    pattern = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
+    print("Original pattern:", pattern)
+    window = PatternScanWindow(3, 3)
+    integer_pattern = window.CA_2D_State_To_Integer(pattern)
+    print("Pattern converted to integer:", integer_pattern)
+    reconstructed_pattern = window.Inverse_CA_2D_State(integer_pattern)
+    print("Reconstructed pattern:", reconstructed_pattern)
+    print("Reconstructed pattern == original pattern:", np.all(reconstructed_pattern == pattern))
+    print()
+
     # ---- Testing with spatial patterns ----
+    print("---- Counting spatial patterns ----")
+    print("--> 1D rows on 1D CA trajectories")
     ## Count the patterns along the 1D space
     ## Count_1D_Space_patterns(width, n_steps, rules, initial_states, trajectories_path, patterns_1D_space_path)
 
@@ -315,8 +341,11 @@ if __name__ == "__main__":
     file.close()
     print("Printing from the file read. The pattern counts for rule 30, initial state 00001 are:\n",
           all_pattern_counts[30][str(np.array([0, 0, 0, 0, 1]))])
+    print()
 
     # ---- Testing with temporal patterns ----
+    print("---- Counting temporal patterns ----")
+    print("--> 1D columns on 1D CA trajectories")
     ## Count the patterns along the 1D time using the general Count_CA_patterns function
     ## The scanning window will be a single column of the same height as the CA trajectory
     Check_Make_Dir(patterns_1D_time_path)
@@ -334,9 +363,12 @@ if __name__ == "__main__":
     file.close()
     print("Printing from the file read. The pattern counts for rule 30, initial state 00001 are:\n",
           all_pattern_counts[30][str(np.array([0, 0, 0, 0, 1]))])
+    print()
     
 
     # ---- Testing with spatiotemporal patterns ----
+    print("---- Counting spatiotemporal patterns ----")
+    print("--> 2D windows on 1D CA trajectories")
     ## Count the patterns along the space and time (i.e. 2D) using the general Count_CA_patterns function
     ## The scanning window will be a 3x3 window
     Check_Make_Dir(patterns_2D_path)

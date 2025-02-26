@@ -26,12 +26,12 @@ def rule_index(triplet):
 def CA_run(initial_state, n_steps, rule_number):
     """
     Simulates a one-dimensional cellular automaton (CA) for a given number of steps.
-    Parameters:
-    initial_state (list or array-like): The initial state of the CA, a list or array of integers (0 or 1).
-    n_steps (int): The number of steps to simulate.
-    rule_number (int): The rule number (0-255) that defines the CA's behavior, based on Wolfram's rule numbering.
+    Args:
+        initial_state (list or array-like): The initial state of the CA, a list or array of integers (0 or 1).
+        n_steps (int): The number of steps to simulate.
+        rule_number (int): The rule number (0-255) that defines the CA's behavior, based on Wolfram's rule numbering.
     Returns:
-    numpy.ndarray: A 2D array where each row represents the state of the CA at a given step.
+        numpy.ndarray: A 2D array where each row represents the state of the CA at a given step.
     """
 
     rule_string = np.binary_repr(rule_number, 8)
@@ -95,17 +95,17 @@ def Count_1D_Space_patterns(_width, _n_steps, _rules, _initial_states,
 
     """
     Counts the occurrences of 1D Cellular Automata (CA) patterns over a recording of CA trajectories.
-    Parameters:
-    _width (int): The width of the 1D CA.
-    _n_steps (int): The number of steps to used to simulate the original CA.
-    _rules (list): The list of rules (as integers) for which the trajectories were recorded.
-    _initial_states (list): The list of initial states for which the trajectories were recorded.
-    _in_trajectories_path (str): The path to the directory containing the trajectory for the CA of the given width.
-    _in_trajectories_file_name (str): The base name of the file containing the trajectories for the CA of the given width.
-    _out_patterns_1D_space_path (str): The path to the directory where the pattern count results will be saved.
-    _out_patterns_1D_space_file_name (str): The base name of the file where the pattern count results will be saved.
+    Args:
+        _width (int): The width of the 1D CA.
+        _n_steps (int): The number of steps to used to simulate the original CA.
+        _rules (list): The list of rules (as integers) for which the trajectories were recorded.
+        _initial_states (list): The list of initial states for which the trajectories were recorded.
+        _in_trajectories_path (str): The path to the directory containing the trajectory for the CA of the given width.
+        _in_trajectories_file_name (str): The base name of the file containing the trajectories for the CA of the given width.
+        _out_patterns_1D_space_path (str): The path to the directory where the pattern count results will be saved.
+        _out_patterns_1D_space_file_name (str): The base name of the file where the pattern count results will be saved.
     Returns:
-    None
+        None
     """
 
     # Extract the trajectory from the recorded data
@@ -247,20 +247,19 @@ def Count_CA_patterns(_width, _rules, _initial_states,
     """
     Counts the occurrences of 1D Cellular Automata (CA) patterns over a recording of CA trajectories.
 
-
-    Parameters:
-    _width (int): The width of the 1D CA.
-    _n_steps (int): The number of steps to used to simulate the original CA.
-    _rules (list): The list of rules (as integers) for which the trajectories were recorded.
-    _initial_states (list): The list of initial states for which the trajectories were recorded.
-    _in_trajectories_path (str): The path to the directory containing the trajectory for the CA of the given width.
-    _in_trajectories_file_name (str): The base name of the file containing the trajectories for the CA of the given width.
-    _out_CA_pattern_counts (str): The path to the directory where the pattern count results will be saved.
-    _out_CA_patterns_file_name (str): The base name of the file where the pattern count results will be saved.
-    _pattern_width (int): The width of the pattern window.
-    _pattern_height (int): The height of the pattern window.
-    _width_step (int): The step size for the width of the pattern window.
-    _height_step (int): The step size for the height of the pattern window.
+    Args:
+        _width (int): The width of the 1D CA.
+        _n_steps (int): The number of steps to used to simulate the original CA.
+        _rules (list): The list of rules (as integers) for which the trajectories were recorded.
+        _initial_states (list): The list of initial states for which the trajectories were recorded.
+        _in_trajectories_path (str): The path to the directory containing the trajectory for the CA of the given width.
+        _in_trajectories_file_name (str): The base name of the file containing the trajectories for the CA of the given width.
+        _out_CA_pattern_counts (str): The path to the directory where the pattern count results will be saved.
+        _out_CA_patterns_file_name (str): The base name of the file where the pattern count results will be saved.
+        _pattern_width (int): The width of the pattern window.
+        _pattern_height (int): The height of the pattern window.
+        _width_step (int): The step size for the width of the pattern window.
+        _height_step (int): The step size for the height of the pattern window.
     Returns:
     None
     """

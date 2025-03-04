@@ -165,9 +165,9 @@ class PatternScanWindow:
         self.height_step = _height_step
         self.power_of_2 = 2 ** np.arange(_width * _height)[::-1]
 
-    def CA_2D_State_To_Integer(self, state):
+    def State_To_Integer(self, state):
         """
-        Converts a 2D cellular automaton (CA) state to an integer.
+        Converts a cellular automaton (CA) state to an integer.
         This function takes a 2D array representing the state of a cellular automaton,
         where each element is a binary value (0 or 1), and converts it to an integer using
         a dot product with a predefined array of powers of 2.
@@ -202,23 +202,23 @@ class PatternScanWindow:
                 # Extract the window from the CA trajectory
                 window = _CA[i:i+self.height, j:j+self.width]              
                 # Convert the window to an integer and increment the count for the pattern
-                pattern_counts[self.CA_2D_State_To_Integer(window)] += 1
+                pattern_counts[self.State_To_Integer(window)] += 1
             
             for j in range(n_cells - self.width + 1, n_cells):
                 # Extract the window from the CA trajectory
                 window = np.hstack((_CA[i:i+self.height, j:], _CA[i:i+self.height, :self.width - (n_cells - j)]))
                 # Convert the window to an integer and increment the count for the pattern
-                pattern_counts[self.CA_2D_State_To_Integer(window)] += 1
+                pattern_counts[self.State_To_Integer(window)] += 1
             
 
 
         return pattern_counts
     
-    def Inverse_CA_2D_State(self, integer_state):
+    def Integer_To_State(self, integer_state):
         """
-        Converts an integer to a binary representation of a 2D cellular automaton (CA) state.
-        This function takes an integer and converts it to a binary array representing the state
-        of a 2D cellular automaton (CA) of a given width and height.
+        Converts an integer to a binary representation of a cellular automaton (CA) state.
+        This function uses the defined width and height of the pattern scan window to reshape
+        the binary representation of the integer into a 2D array.
         Args:
             integer_state (int): The integer representation of the CA state.
         Returns:
@@ -309,9 +309,9 @@ if __name__ == "__main__":
     pattern = np.array([[0, 1, 0], [1, 1, 1], [0, 1, 0]])
     print("Original pattern:", pattern)
     window = PatternScanWindow(3, 3)
-    integer_pattern = window.CA_2D_State_To_Integer(pattern)
+    integer_pattern = window.State_To_Integer(pattern)
     print("Pattern converted to integer:", integer_pattern)
-    reconstructed_pattern = window.Inverse_CA_2D_State(integer_pattern)
+    reconstructed_pattern = window.Integer_To_State(integer_pattern)
     print("Reconstructed pattern:", reconstructed_pattern)
     print("Reconstructed pattern == original pattern:", np.all(reconstructed_pattern == pattern))
     print()
